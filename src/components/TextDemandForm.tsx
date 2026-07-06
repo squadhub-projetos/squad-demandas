@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { Person, SubmitResult, SubmitStatus } from "../types";
 import { submitDemand } from "../services/submitDemand";
 import { OptionalFields } from "./OptionalFields";
-import { InlineError, SuccessPanel } from "./Feedback";
+import { ErrorPanel, ProcessingPanel, SuccessPanel } from "./Feedback";
 import { IconSend } from "./icons";
 
 interface TextDemandFormProps {
@@ -16,26 +16,21 @@ export function TextDemandForm({ requester }: TextDemandFormProps) {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [result, setResult] = useState<SubmitResult | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Bloqueia o envio apenas quando texto E detalhes estão vazios.
   const canSubmit = demandText.trim() !== "" || details.trim() !== "";
 
-  function reset() {
+  function clearFields() {
     setDemandText("");
     setDeadline("");
     setDetails("");
     setAttachment(null);
-    setStatus("idle");
-    setResult(null);
-    setErrorMessage(null);
   }
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!canSubmit || status === "sending") return;
+  async function performSubmit() {
+    // A tela "enviada para análise" aparece imediatamente;
+    // o fetch segue aguardando o n8n em segundo plano.
     setStatus("sending");
-    setErrorMessage(null);
     try {
       const submitResult = await submitDemand({
         requester,
@@ -47,19 +42,42 @@ export function TextDemandForm({ requester }: TextDemandFormProps) {
         audio: null,
       });
       setResult(submitResult);
+      clearFields();
       setStatus("success");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error && error.message
-          ? error.message
-          : "Não foi possível enviar agora. Tente de novo em instantes.",
-      );
+    } catch {
       setStatus("error");
     }
   }
 
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!canSubmit || status === "sending") return;
+    void performSubmit();
+  }
+
+  if (status === "sending") {
+    return <ProcessingPanel />;
+  }
+
   if (status === "success" && result) {
-    return <SuccessPanel result={result} onReset={reset} />;
+    return (
+      <SuccessPanel
+        result={result}
+        onReset={() => {
+          setStatus("idle");
+          setResult(null);
+        }}
+      />
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <ErrorPanel
+        onRetry={() => void performSubmit()}
+        onEdit={() => setStatus("idle")}
+      />
+    );
   }
 
   return (
@@ -84,26 +102,15 @@ export function TextDemandForm({ requester }: TextDemandFormProps) {
         onAttachmentChange={setAttachment}
       />
 
-      {status === "error" && errorMessage && <InlineError>{errorMessage}</InlineError>}
-
       <div className="form-actions">
         {!canSubmit && <span className="form-hint">Descreva a demanda para enviar</span>}
         <button
           type="submit"
           className="primary-button"
-          disabled={!canSubmit || status === "sending"}
+          disabled={!canSubmit}
         >
-          {status === "sending" ? (
-            <>
-              <span className="spinner" aria-hidden="true" />
-              Enviando…
-            </>
-          ) : (
-            <>
-              <IconSend width={16} height={16} />
-              Enviar demanda
-            </>
-          )}
+          <IconSend width={16} height={16} />
+          Enviar demanda
         </button>
       </div>
     </form>

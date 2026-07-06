@@ -1,21 +1,29 @@
 import { useMemo, useState } from "react";
-import type { DemandMode } from "./types";
+import type { DemandMode, Person } from "./types";
 import { isWebhookConfigured } from "./services/submitDemand";
-import { useResponsaveis } from "./hooks/useResponsaveis";
+import { useMondayUsers } from "./hooks/useMondayUsers";
 import { AuroraBackground } from "./components/AuroraBackground";
-import { RequesterSelect } from "./components/RequesterSelect";
+import { RequesterSelect, OTHER_REQUESTER_ID } from "./components/RequesterSelect";
 import { ModePicker } from "./components/ModePicker";
 import { TextDemandForm } from "./components/TextDemandForm";
 import { AudioDemandForm } from "./components/AudioDemandForm";
-import { LogoMark } from "./components/icons";
 
-const REQUESTER_STORAGE_KEY = "squad-demandas:requester-id";
+const REQUESTER_ID_STORAGE_KEY = "squad-demandas:requester-id";
+const OTHER_NAME_STORAGE_KEY = "squad-demandas:requester-other-name";
 
-function loadStoredRequesterId(): string {
+function readStorage(key: string): string {
   try {
-    return localStorage.getItem(REQUESTER_STORAGE_KEY) ?? "";
+    return localStorage.getItem(key) ?? "";
   } catch {
     return "";
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // sem localStorage, segue sem persistir
   }
 }
 
@@ -26,23 +34,40 @@ const STEPS = [
 ];
 
 export default function App() {
-  const { people, loading, error, reload } = useResponsaveis();
-  const [requesterId, setRequesterId] = useState<string>(loadStoredRequesterId);
+  const { users, loading, error, reload } = useMondayUsers();
+  const [selectedId, setSelectedId] = useState<string>(() =>
+    readStorage(REQUESTER_ID_STORAGE_KEY),
+  );
+  const [otherName, setOtherName] = useState<string>(() =>
+    readStorage(OTHER_NAME_STORAGE_KEY),
+  );
   const [mode, setMode] = useState<DemandMode | null>(null);
 
-  // Só considera selecionado se a pessoa ainda existir na lista atual.
-  const requester = useMemo(
-    () => people.find((person) => person.id === requesterId) ?? null,
-    [people, requesterId],
-  );
+  // Se a pessoa salva não existe mais na lista, o select volta para vazio.
+  const effectiveSelectedId =
+    selectedId === OTHER_REQUESTER_ID || users.some((user) => user.id === selectedId)
+      ? selectedId
+      : "";
 
-  function handleRequesterChange(id: string) {
-    setRequesterId(id);
-    try {
-      localStorage.setItem(REQUESTER_STORAGE_KEY, id);
-    } catch {
-      // sem localStorage, segue sem persistir
+  const requester: Person | null = useMemo(() => {
+    if (effectiveSelectedId === OTHER_REQUESTER_ID) {
+      const name = otherName.trim();
+      if (name === "") return null;
+      return { id: OTHER_REQUESTER_ID, name, aliases: "", boardId: "" };
     }
+    const user = users.find((candidate) => candidate.id === effectiveSelectedId);
+    if (!user) return null;
+    return { id: user.id, name: user.name, aliases: "", boardId: "" };
+  }, [effectiveSelectedId, otherName, users]);
+
+  function handleSelect(id: string) {
+    setSelectedId(id);
+    writeStorage(REQUESTER_ID_STORAGE_KEY, id);
+  }
+
+  function handleOtherNameChange(name: string) {
+    setOtherName(name);
+    writeStorage(OTHER_NAME_STORAGE_KEY, name);
   }
 
   const currentStep = requester ? (mode ? 3 : 2) : 1;
@@ -53,10 +78,12 @@ export default function App() {
 
       <main className="layout">
         <aside className="intro">
-          <div className="brand">
-            <LogoMark className="brand-mark" />
-            <span>SquadHub</span>
-          </div>
+          <img
+            src="/logo-squadhub.svg"
+            alt="SquadHub"
+            className="brand-logo"
+            draggable={false}
+          />
 
           <h1>
             Central de
@@ -101,11 +128,13 @@ export default function App() {
 
           <section className="panel-section">
             <RequesterSelect
-              people={people}
+              users={users}
               loading={loading}
               error={error}
-              value={requester?.id ?? ""}
-              onChange={handleRequesterChange}
+              selectedId={effectiveSelectedId}
+              otherName={otherName}
+              onSelect={handleSelect}
+              onOtherNameChange={handleOtherNameChange}
               onReload={reload}
             />
           </section>

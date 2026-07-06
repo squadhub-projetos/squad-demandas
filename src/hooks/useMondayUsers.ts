@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Person } from "../types";
-import { fetchResponsaveis } from "../services/responsaveis";
+import type { MondayUser } from "../types";
+import { fetchMondayUsers } from "../services/mondayUsers";
 
-export interface ResponsaveisState {
-  people: Person[];
+export interface MondayUsersState {
+  users: MondayUser[];
   loading: boolean;
   error: string | null;
   reload: () => void;
 }
 
-export function useResponsaveis(): ResponsaveisState {
-  const [people, setPeople] = useState<Person[]>([]);
+export function useMondayUsers(): MondayUsersState {
+  const [users, setUsers] = useState<MondayUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestSeq = useRef(0);
@@ -20,9 +20,9 @@ export function useResponsaveis(): ResponsaveisState {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchResponsaveis();
+      const list = await fetchMondayUsers();
       if (seq !== requestSeq.current) return;
-      setPeople(list);
+      setUsers(list);
       setLoading(false);
     } catch {
       if (seq !== requestSeq.current) return;
@@ -39,5 +39,5 @@ export function useResponsaveis(): ResponsaveisState {
     void load();
   }, [load]);
 
-  return { people, loading, error, reload };
+  return { users, loading, error, reload };
 }

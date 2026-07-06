@@ -3,7 +3,7 @@ import type { Person, SubmitResult, SubmitStatus } from "../types";
 import { submitDemand } from "../services/submitDemand";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import { OptionalFields } from "./OptionalFields";
-import { InlineError, SuccessPanel } from "./Feedback";
+import { ErrorPanel, InlineError, ProcessingPanel, SuccessPanel } from "./Feedback";
 import { IconMic, IconSend, IconStop } from "./icons";
 
 interface AudioDemandFormProps {
@@ -23,23 +23,19 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [result, setResult] = useState<SubmitResult | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  function reset() {
+  function clearFields() {
     recorder.reset();
     setDeadline("");
     setDetails("");
     setAttachment(null);
-    setStatus("idle");
-    setResult(null);
-    setErrorMessage(null);
   }
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!recorder.audioBlob || status === "sending") return;
+  async function performSubmit() {
+    if (!recorder.audioBlob) return;
+    // A tela "enviada para análise" aparece imediatamente;
+    // o fetch segue aguardando o n8n em segundo plano.
     setStatus("sending");
-    setErrorMessage(null);
     try {
       const submitResult = await submitDemand({
         requester,
@@ -51,19 +47,42 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
         audio: recorder.audioBlob,
       });
       setResult(submitResult);
+      clearFields();
       setStatus("success");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error && error.message
-          ? error.message
-          : "Não foi possível enviar agora. Tente de novo em instantes.",
-      );
+    } catch {
       setStatus("error");
     }
   }
 
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!recorder.audioBlob || status === "sending") return;
+    void performSubmit();
+  }
+
+  if (status === "sending") {
+    return <ProcessingPanel />;
+  }
+
   if (status === "success" && result) {
-    return <SuccessPanel result={result} onReset={reset} />;
+    return (
+      <SuccessPanel
+        result={result}
+        onReset={() => {
+          setStatus("idle");
+          setResult(null);
+        }}
+      />
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <ErrorPanel
+        onRetry={() => void performSubmit()}
+        onEdit={() => setStatus("idle")}
+      />
+    );
   }
 
   return (
@@ -124,8 +143,6 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
         onAttachmentChange={setAttachment}
       />
 
-      {status === "error" && errorMessage && <InlineError>{errorMessage}</InlineError>}
-
       <div className="form-actions">
         {!recorder.audioBlob && !recorder.isRecording && (
           <span className="form-hint">Grave um áudio para enviar</span>
@@ -133,19 +150,10 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
         <button
           type="submit"
           className="primary-button"
-          disabled={!recorder.audioBlob || status === "sending"}
+          disabled={!recorder.audioBlob}
         >
-          {status === "sending" ? (
-            <>
-              <span className="spinner" aria-hidden="true" />
-              Enviando…
-            </>
-          ) : (
-            <>
-              <IconSend width={16} height={16} />
-              Enviar áudio
-            </>
-          )}
+          <IconSend width={16} height={16} />
+          Enviar áudio
         </button>
       </div>
     </form>

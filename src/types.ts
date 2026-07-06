@@ -9,8 +9,14 @@ export interface Person {
   boardId: string;
 }
 
-export interface ResponsaveisResponse {
-  people: Person[];
+export interface MondayUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface MondayUsersResponse {
+  users: MondayUser[];
   cached: boolean;
 }
 

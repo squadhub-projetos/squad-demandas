@@ -1,25 +1,35 @@
 import { useId } from "react";
-import type { Person } from "../types";
+import type { MondayUser } from "../types";
 import { IconAlert, IconChevronDown, IconRefresh } from "./icons";
 
+export const OTHER_REQUESTER_ID = "other";
+
 interface RequesterSelectProps {
-  people: Person[];
+  users: MondayUser[];
   loading: boolean;
   error: string | null;
-  value: string;
-  onChange: (id: string) => void;
+  /** "" | id de usuário monday | "other" */
+  selectedId: string;
+  otherName: string;
+  onSelect: (id: string) => void;
+  onOtherNameChange: (name: string) => void;
   onReload: () => void;
 }
 
 export function RequesterSelect({
-  people,
+  users,
   loading,
   error,
-  value,
-  onChange,
+  selectedId,
+  otherName,
+  onSelect,
+  onOtherNameChange,
   onReload,
 }: RequesterSelectProps) {
   const selectId = useId();
+  const otherId = useId();
+
+  const isOther = selectedId === OTHER_REQUESTER_ID;
 
   return (
     <div className="requester">
@@ -49,32 +59,41 @@ export function RequesterSelect({
             Tentar novamente
           </button>
         </div>
-      ) : people.length === 0 ? (
-        <div className="load-error" role="status">
-          <IconAlert width={16} height={16} />
-          <span>Nenhuma pessoa ativa encontrada.</span>
-          <button type="button" className="text-button" onClick={onReload}>
-            Recarregar
-          </button>
-        </div>
       ) : (
-        <div className="select-shell">
-          <select
-            id={selectId}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-          >
-            <option value="" disabled>
-              Selecione seu nome
-            </option>
-            {people.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
+        <>
+          <div className="select-shell">
+            <select
+              id={selectId}
+              value={selectedId}
+              onChange={(event) => onSelect(event.target.value)}
+            >
+              <option value="" disabled>
+                Selecione seu nome
               </option>
-            ))}
-          </select>
-          <IconChevronDown className="select-chevron" width={16} height={16} />
-        </div>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+              <option value={OTHER_REQUESTER_ID}>Outro</option>
+            </select>
+            <IconChevronDown className="select-chevron" width={16} height={16} />
+          </div>
+
+          {isOther && (
+            <div className="other-name rise">
+              <label htmlFor={otherId}>Digite seu nome</label>
+              <input
+                id={otherId}
+                type="text"
+                autoComplete="name"
+                placeholder="Seu nome completo"
+                value={otherName}
+                onChange={(event) => onOtherNameChange(event.target.value)}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

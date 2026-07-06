@@ -100,11 +100,3 @@ export function IconStop(props: IconProps) {
     </svg>
   );
 }
-
-export function LogoMark(props: IconProps) {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <path d="M12 2 14.4 9.6 22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2Z" />
-    </svg>
-  );
-}
