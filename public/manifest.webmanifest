@@ -1,0 +1,17 @@
+{
+  "name": "Central de Demandas · SquadHub",
+  "short_name": "Demandas",
+  "description": "Envie solicitações por texto ou áudio. A IA encaminha para a pessoa certa na monday.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05060c",
+  "theme_color": "#05060c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
