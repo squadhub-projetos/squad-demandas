@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { Person, SubmitStatus } from "../types";
+import type { Person, SubmitResult, SubmitStatus } from "../types";
 import { submitDemand } from "../services/submitDemand";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import { OptionalFields } from "./OptionalFields";
@@ -22,7 +22,8 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
   const [details, setDetails] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
-  const [wasDemo, setWasDemo] = useState(false);
+  const [result, setResult] = useState<SubmitResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function reset() {
     recorder.reset();
@@ -30,15 +31,17 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
     setDetails("");
     setAttachment(null);
     setStatus("idle");
-    setWasDemo(false);
+    setResult(null);
+    setErrorMessage(null);
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!recorder.audioBlob || status === "sending") return;
     setStatus("sending");
+    setErrorMessage(null);
     try {
-      const result = await submitDemand({
+      const submitResult = await submitDemand({
         requester,
         mode: "audio",
         demandText: "",
@@ -47,15 +50,20 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
         attachment,
         audio: recorder.audioBlob,
       });
-      setWasDemo(result.demo);
+      setResult(submitResult);
       setStatus("success");
-    } catch {
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível enviar agora. Tente de novo em instantes.",
+      );
       setStatus("error");
     }
   }
 
-  if (status === "success") {
-    return <SuccessPanel demo={wasDemo} onReset={reset} />;
+  if (status === "success" && result) {
+    return <SuccessPanel result={result} onReset={reset} />;
   }
 
   return (
@@ -116,11 +124,7 @@ export function AudioDemandForm({ requester }: AudioDemandFormProps) {
         onAttachmentChange={setAttachment}
       />
 
-      {status === "error" && (
-        <InlineError>
-          Não foi possível enviar agora. Verifique sua conexão e tente de novo.
-        </InlineError>
-      )}
+      {status === "error" && errorMessage && <InlineError>{errorMessage}</InlineError>}
 
       <div className="form-actions">
         {!recorder.audioBlob && !recorder.isRecording && (

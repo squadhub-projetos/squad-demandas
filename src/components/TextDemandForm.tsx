@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import type { Person, SubmitStatus } from "../types";
+import type { Person, SubmitResult, SubmitStatus } from "../types";
 import { submitDemand } from "../services/submitDemand";
 import { OptionalFields } from "./OptionalFields";
 import { InlineError, SuccessPanel } from "./Feedback";
@@ -9,17 +9,17 @@ interface TextDemandFormProps {
   requester: Person;
 }
 
-const MIN_TEXT_LENGTH = 3;
-
 export function TextDemandForm({ requester }: TextDemandFormProps) {
   const [demandText, setDemandText] = useState("");
   const [deadline, setDeadline] = useState("");
   const [details, setDetails] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<SubmitStatus>("idle");
-  const [wasDemo, setWasDemo] = useState(false);
+  const [result, setResult] = useState<SubmitResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const canSubmit = demandText.trim().length >= MIN_TEXT_LENGTH;
+  // Bloqueia o envio apenas quando texto E detalhes estão vazios.
+  const canSubmit = demandText.trim() !== "" || details.trim() !== "";
 
   function reset() {
     setDemandText("");
@@ -27,15 +27,17 @@ export function TextDemandForm({ requester }: TextDemandFormProps) {
     setDetails("");
     setAttachment(null);
     setStatus("idle");
-    setWasDemo(false);
+    setResult(null);
+    setErrorMessage(null);
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit || status === "sending") return;
     setStatus("sending");
+    setErrorMessage(null);
     try {
-      const result = await submitDemand({
+      const submitResult = await submitDemand({
         requester,
         mode: "text",
         demandText,
@@ -44,15 +46,20 @@ export function TextDemandForm({ requester }: TextDemandFormProps) {
         attachment,
         audio: null,
       });
-      setWasDemo(result.demo);
+      setResult(submitResult);
       setStatus("success");
-    } catch {
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível enviar agora. Tente de novo em instantes.",
+      );
       setStatus("error");
     }
   }
 
-  if (status === "success") {
-    return <SuccessPanel demo={wasDemo} onReset={reset} />;
+  if (status === "success" && result) {
+    return <SuccessPanel result={result} onReset={reset} />;
   }
 
   return (
@@ -77,11 +84,7 @@ export function TextDemandForm({ requester }: TextDemandFormProps) {
         onAttachmentChange={setAttachment}
       />
 
-      {status === "error" && (
-        <InlineError>
-          Não foi possível enviar agora. Verifique sua conexão e tente de novo.
-        </InlineError>
-      )}
+      {status === "error" && errorMessage && <InlineError>{errorMessage}</InlineError>}
 
       <div className="form-actions">
         {!canSubmit && <span className="form-hint">Descreva a demanda para enviar</span>}
