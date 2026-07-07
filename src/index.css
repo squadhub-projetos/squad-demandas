@@ -381,16 +381,14 @@ button {
 }
 
 /* ============================================================
-   Dropdown de solicitante
+   Combobox de solicitante (pesquisável)
    ============================================================ */
 
-.select-shell {
+.combobox {
   position: relative;
 }
 
-.select-shell select {
-  appearance: none;
-  -webkit-appearance: none;
+.combobox-input {
   width: 100%;
   font: inherit;
   font-size: 1rem;
@@ -399,8 +397,7 @@ button {
   background: var(--surface-strong);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  padding: 0.85rem 2.8rem 0.85rem 1rem;
-  cursor: pointer;
+  padding: 0.85rem 3rem 0.85rem 1rem;
   outline: none;
   transition:
     border-color 0.2s var(--ease),
@@ -408,28 +405,145 @@ button {
     background 0.2s var(--ease);
 }
 
-.select-shell select:focus-visible {
+.combobox-input::placeholder {
+  color: var(--ink-500);
+  font-weight: 400;
+}
+
+.combobox-input:focus-visible {
   border-color: rgba(139, 150, 255, 0.45);
   box-shadow: 0 0 0 4px rgba(139, 150, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.select-shell select:invalid,
-.select-shell select option[value=""] {
+.combobox-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  translate: 0 -50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
   color: var(--ink-500);
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
 }
 
-.select-shell select option {
-  background: #0c0e18;
+.combobox-toggle:hover {
   color: var(--ink-100);
 }
 
-.select-chevron {
+.combobox-toggle svg {
+  transition: transform 0.25s var(--ease);
+}
+
+.combobox-toggle .flip {
+  transform: rotate(180deg);
+}
+
+.combobox-panel {
   position: absolute;
-  right: 1rem;
-  top: 50%;
-  translate: 0 -50%;
-  pointer-events: none;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 0.4rem;
+  list-style: none;
+  max-height: 16rem;
+  overflow-y: auto;
+  background: rgba(13, 15, 26, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 60px -20px rgba(0, 0, 0, 0.85);
+  animation: pop 0.18s var(--ease);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.combobox-option {
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  color: var(--ink-300);
+  cursor: pointer;
+  transition:
+    background 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+
+.combobox-option.is-highlighted {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink-100);
+}
+
+.combobox-option.is-selected {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.combobox-option.is-other {
+  position: relative;
+  margin-top: 0.4rem;
+}
+
+.combobox-option.is-other::before {
+  content: "";
+  position: absolute;
+  top: -0.22rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 1px;
+  background: var(--line);
+}
+
+.combobox-empty {
+  padding: 0.7rem 0.75rem;
+  font-size: 0.85rem;
   color: var(--ink-500);
+}
+
+/* link pessoal */
+
+.copy-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.8rem;
+}
+
+.copy-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: none;
+  padding: 0.25rem 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-500);
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
+}
+
+.copy-link:hover {
+  color: var(--ink-300);
+}
+
+.copy-link.is-copied {
+  color: var(--teal);
 }
 
 /* skeleton de carregamento */

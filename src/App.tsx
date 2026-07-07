@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DemandMode, Person } from "./types";
 import { isWebhookConfigured } from "./services/submitDemand";
-import { useMondayUsers } from "./hooks/useMondayUsers";
+import { useSolicitantes } from "./hooks/useSolicitantes";
+import { normalizeText } from "./utils/text";
 import { AuroraBackground } from "./components/AuroraBackground";
 import { RequesterSelect, OTHER_REQUESTER_ID } from "./components/RequesterSelect";
+import { CopyPersonalLink } from "./components/CopyPersonalLink";
 import { ModePicker } from "./components/ModePicker";
 import { TextDemandForm } from "./components/TextDemandForm";
 import { AudioDemandForm } from "./components/AudioDemandForm";
@@ -27,6 +29,15 @@ function writeStorage(key: string, value: string) {
   }
 }
 
+/** Parâmetros de link pessoal (?solicitanteId=... ou ?solicitante=...). */
+function readUrlParams(): { solicitanteId: string; solicitanteName: string } {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    solicitanteId: params.get("solicitanteId")?.trim() ?? "",
+    solicitanteName: params.get("solicitante")?.trim() ?? "",
+  };
+}
+
 const STEPS = [
   { number: "01", label: "Identifique-se" },
   { number: "02", label: "Escolha o formato" },
@@ -34,7 +45,7 @@ const STEPS = [
 ];
 
 export default function App() {
-  const { users, loading, error, reload } = useMondayUsers();
+  const { solicitantes, loading, error, reload } = useSolicitantes();
   const [selectedId, setSelectedId] = useState<string>(() =>
     readStorage(REQUESTER_ID_STORAGE_KEY),
   );
@@ -42,23 +53,8 @@ export default function App() {
     readStorage(OTHER_NAME_STORAGE_KEY),
   );
   const [mode, setMode] = useState<DemandMode | null>(null);
-
-  // Se a pessoa salva não existe mais na lista, o select volta para vazio.
-  const effectiveSelectedId =
-    selectedId === OTHER_REQUESTER_ID || users.some((user) => user.id === selectedId)
-      ? selectedId
-      : "";
-
-  const requester: Person | null = useMemo(() => {
-    if (effectiveSelectedId === OTHER_REQUESTER_ID) {
-      const name = otherName.trim();
-      if (name === "") return null;
-      return { id: OTHER_REQUESTER_ID, name, aliases: "", boardId: "" };
-    }
-    const user = users.find((candidate) => candidate.id === effectiveSelectedId);
-    if (!user) return null;
-    return { id: user.id, name: user.name, aliases: "", boardId: "" };
-  }, [effectiveSelectedId, otherName, users]);
+  const [urlParams] = useState(readUrlParams);
+  const urlAppliedRef = useRef(false);
 
   function handleSelect(id: string) {
     setSelectedId(id);
@@ -69,6 +65,69 @@ export default function App() {
     setOtherName(name);
     writeStorage(OTHER_NAME_STORAGE_KEY, name);
   }
+
+  // Pré-seleção por link pessoal, aplicada uma vez quando a lista chega.
+  // Prioridade: ?solicitanteId > ?solicitante (nome) > localStorage.
+  //
+  // Futuro (embed na monday): aqui também será o ponto para casar o
+  // usuário logado da monday com um item do Mapa de Solicitantes.
+  useEffect(() => {
+    if (urlAppliedRef.current) return;
+    if (loading) return;
+    // Se a lista falhou, tenta resolver de novo após um reload bem-sucedido.
+    if (error && solicitantes.length === 0) return;
+    urlAppliedRef.current = true;
+
+    const { solicitanteId, solicitanteName } = urlParams;
+    if (!solicitanteId && !solicitanteName) return; // sem params → localStorage
+
+    if (
+      solicitanteId &&
+      solicitantes.some((solicitante) => solicitante.id === solicitanteId)
+    ) {
+      handleSelect(solicitanteId);
+      return;
+    }
+
+    if (solicitanteName) {
+      const target = normalizeText(solicitanteName);
+      const match = solicitantes.find(
+        (solicitante) => normalizeText(solicitante.name) === target,
+      );
+      if (match) {
+        handleSelect(match.id);
+        return;
+      }
+      // Link pessoal de quem se identifica como "Outro".
+      handleSelect(OTHER_REQUESTER_ID);
+      handleOtherNameChange(solicitanteName);
+      return;
+    }
+
+    // Parâmetro presente mas não encontrado: começa vazio, sem quebrar.
+    setSelectedId("");
+  }, [loading, error, solicitantes, urlParams]);
+
+  // Se a pessoa salva não existe mais na lista, o campo volta para vazio.
+  const effectiveSelectedId =
+    selectedId === OTHER_REQUESTER_ID ||
+    solicitantes.some((solicitante) => solicitante.id === selectedId)
+      ? selectedId
+      : "";
+
+  const requester: Person | null = useMemo(() => {
+    if (effectiveSelectedId === OTHER_REQUESTER_ID) {
+      const name = otherName.trim();
+      if (name === "") return null;
+      return { id: OTHER_REQUESTER_ID, name, aliases: "", boardId: "" };
+    }
+    const solicitante = solicitantes.find(
+      (candidate) => candidate.id === effectiveSelectedId,
+    );
+    if (!solicitante) return null;
+    // O id do item do Mapa de Solicitantes é o requester_id enviado ao n8n.
+    return { id: solicitante.id, name: solicitante.name, aliases: "", boardId: "" };
+  }, [effectiveSelectedId, otherName, solicitantes]);
 
   const currentStep = requester ? (mode ? 3 : 2) : 1;
 
@@ -128,7 +187,7 @@ export default function App() {
 
           <section className="panel-section">
             <RequesterSelect
-              users={users}
+              solicitantes={solicitantes}
               loading={loading}
               error={error}
               selectedId={effectiveSelectedId}
@@ -137,6 +196,7 @@ export default function App() {
               onOtherNameChange={handleOtherNameChange}
               onReload={reload}
             />
+            {requester && <CopyPersonalLink requester={requester} />}
           </section>
 
           {requester && (

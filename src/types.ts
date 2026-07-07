@@ -9,14 +9,14 @@ export interface Person {
   boardId: string;
 }
 
-export interface MondayUser {
+/** Item do board "Mapa de Solicitantes": o id do item é o solicitanteId. */
+export interface Solicitante {
   id: string;
   name: string;
-  email: string;
 }
 
-export interface MondayUsersResponse {
-  users: MondayUser[];
+export interface SolicitantesResponse {
+  solicitantes: Solicitante[];
   cached: boolean;
 }
 

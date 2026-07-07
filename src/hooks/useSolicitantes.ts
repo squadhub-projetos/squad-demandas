@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MondayUser } from "../types";
-import { fetchMondayUsers } from "../services/mondayUsers";
+import type { Solicitante } from "../types";
+import { fetchSolicitantes } from "../services/solicitantes";
 
-export interface MondayUsersState {
-  users: MondayUser[];
+export interface SolicitantesState {
+  solicitantes: Solicitante[];
   loading: boolean;
   error: string | null;
   reload: () => void;
 }
 
-export function useMondayUsers(): MondayUsersState {
-  const [users, setUsers] = useState<MondayUser[]>([]);
+export function useSolicitantes(): SolicitantesState {
+  const [solicitantes, setSolicitantes] = useState<Solicitante[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestSeq = useRef(0);
@@ -20,13 +20,13 @@ export function useMondayUsers(): MondayUsersState {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchMondayUsers();
+      const list = await fetchSolicitantes();
       if (seq !== requestSeq.current) return;
-      setUsers(list);
+      setSolicitantes(list);
       setLoading(false);
     } catch {
       if (seq !== requestSeq.current) return;
-      setError("Não foi possível carregar a lista de pessoas.");
+      setError("Não foi possível carregar a lista de solicitantes.");
       setLoading(false);
     }
   }, []);
@@ -39,5 +39,5 @@ export function useMondayUsers(): MondayUsersState {
     void load();
   }, [load]);
 
-  return { users, loading, error, reload };
+  return { solicitantes, loading, error, reload };
 }
